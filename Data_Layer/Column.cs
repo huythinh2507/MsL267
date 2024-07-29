@@ -10,7 +10,7 @@ namespace DataLayer
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
         public ColumnType Type { get; set; }
-        public List<object> CellValues { get; set; } = [];
+        public List<object> CellValues { get; set; } = new List<object>();
         public string Description { get; set; } = string.Empty;
         public bool IsHidden { get; set; } = false;
         public int Width { get; set; } = MsLConstant.DefaultColWidth;

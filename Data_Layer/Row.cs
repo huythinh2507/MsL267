@@ -2,7 +2,7 @@
 {
     public class Row
     {
-        public List<Cell> Cells { get; set; } = [];
+        public List<Cell> Cells { get; set; } = new List<Cell>();
         
         public readonly Guid Id = Guid.NewGuid();
         public void UpdateCells(List<object> newValues)
@@ -14,7 +14,7 @@
 
             for (int i = 0; i < Cells.Count; i++)
             {
-                Cells[i].Value = newValues[i];
+                Cells[i].Value = (List<object>)newValues[i];
             }
         }
     }

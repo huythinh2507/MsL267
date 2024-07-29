@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
+using System.Drawing;
 
 namespace DataLayer
 {
@@ -18,9 +19,9 @@ namespace DataLayer
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public List<Column> Columns { get; set; } = [];
+        public List<Column> Columns { get; set; } = new List<Column>();
         public Color Color { get; set; } = new Color();
-        public List<Row> Rows { get; set; } = [];
+        public List<Row> Rows { get; set; } = new List<Row>();
         public string Icon { get; set; } = string.Empty;
         public bool IsFavorited { get; set; } = false;
         public int PageSize { get; set; } = 2;
@@ -178,6 +179,7 @@ namespace DataLayer
         {
             return accessList;
         }
+
         
     }
 }

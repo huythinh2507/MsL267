@@ -8,6 +8,6 @@ namespace DataLayer
 {
     public class RowRequest
     {
-        public object Value { get; set; } = new object();
+        public List<object> Value { get; set; } = new List<object>();
     }
 }

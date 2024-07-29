@@ -18,7 +18,6 @@ namespace MsLServiceLayer
             }
         }
 
-        private readonly List<List> _templates;
         private readonly List<List> _lists;
 
         public ListService()
@@ -26,25 +25,15 @@ namespace MsLServiceLayer
             var path = MsLConstant.FilePath;
             ArgumentNullException.ThrowIfNull(path);
 
-            _templates = LoadTemplatesFromJson(path) ?? [];
-            ArgumentNullException.ThrowIfNull(_templates);
 
             _lists = [];
         }
 
-        public static List<List> LoadTemplatesFromJson(string filePath)
-        {
-            var json = System.IO.File.ReadAllText(MsLConstant.FilePath);
-
-            // Deserialize the JSON data into a list of ListModel
-            var savedLists = JsonConvert.DeserializeObject<List<List>>(json);
-            ArgumentNullException.ThrowIfNull(savedLists);
-            return savedLists;
-        }
+        
 
         public List CreateBlankList(string listName, string description, Color color, string icon)
         {
-            var newList = new List
+            var list = new List
             {
                 Id = Guid.NewGuid(),
                 Name = listName,
@@ -54,13 +43,13 @@ namespace MsLServiceLayer
                 Icon = icon,
                 Rows = []
             };
-            _lists.Add(newList);
 
-            return newList;
+            return list;
         }
 
         public List CreateBlankList(string listName, string description)
         {
+
             return CreateBlankList(listName, description, Color.White, "🌟");
         }
 
@@ -80,15 +69,10 @@ namespace MsLServiceLayer
                 Rows = existingList.Rows
             };
 
-            _lists.Add(newList);
-
             return newList;
         }
 
-        public List<List> GetTemplate()
-        {
-            return _templates;
-        }
+        
 
         public List<List> GetLists()
         {
@@ -125,7 +109,7 @@ namespace MsLServiceLayer
             return lists; // List successfully removed
         }
 
-        public static List? GetList(Guid id)
+        public List? GetList(Guid id)
         {
             var lists = LoadLists();
             var list = lists.Find(l => l.Id == id);
@@ -145,7 +129,7 @@ namespace MsLServiceLayer
             return true; // List successfully removed
         }
 
-        public static Form ToForm(List list)
+        public Form ToForm(List list)
         {
             var form = new Form()
             {
@@ -159,27 +143,26 @@ namespace MsLServiceLayer
             return form;
         }
 
-        public static List<List> LoadLists()
+        public List<List> LoadLists()
         {
-            var existingData = System.IO.File.Exists(MsLConstant.FilePath) ? System.IO.File.ReadAllText(MsLConstant.FilePath) : "[]";
-            var savedLists = JsonConvert.DeserializeObject<List<List>>(existingData);
-            ArgumentNullException.ThrowIfNull(savedLists);
+            var existingData = File.Exists(MsLConstant.FilePath) ? File.ReadAllText(MsLConstant.FilePath) : "[]";
+            var savedLists = JsonConvert.DeserializeObject<List<List>>(existingData) ?? new List<List>();
             return savedLists;
         }
 
         public void SaveLists(List<List> lists)
         {
             var updatedData = JsonConvert.SerializeObject(lists);
-            System.IO.File.WriteAllText(_filePath, updatedData);
+            File.WriteAllText(_filePath, updatedData);
         }
 
-        public static void DeleteAllLists()
+        public void DeleteAllLists()
         {
             var lists = LoadLists();
             lists.Clear();
         }
-
-        public static Column CreateColumnFromRequest(ColumnRequest columnRequest)
+        
+        public Column CreateColumnFromRequest(ColumnRequest columnRequest)
         {
             var column = new Column()
             {
@@ -194,6 +177,71 @@ namespace MsLServiceLayer
             savedLists.Clear();
             SaveLists(savedLists);
         }
-        
+
+        public void SortColumnAsc(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var column = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(column);
+
+            column.AtoZ(); 
+
+            SaveLists(lists);
+        }
+
+        public List<Row> SearchList(Guid listId, string query)
+        {
+            var list = _lists.Find(l => l.Id == listId) ?? throw new ArgumentException("List not found.");
+            return list.Search(query);
+        }
+
+        public void AddColumn(Guid listId, ColumnRequest request)
+        {
+            var lists = LoadLists();
+            var list = GetList(listId) ?? throw new ArgumentException("List not found");
+            var col = CreateColumnFromRequest(request);
+            list.AddCol(col);
+
+            var indexToUpdate = lists.FindIndex(l => l.Id == listId);
+            lists[indexToUpdate] = list;
+
+            SaveLists(lists);
+        }
+
+        public void AddRow(Guid listId, params object[] values)
+        {
+            var lists = LoadLists();
+            var list = GetList(listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            list.AddRow(values);
+
+            var indexToUpdate = lists.FindIndex(l => l.Id == listId);
+            lists[indexToUpdate] = list;
+
+            SaveLists(lists);
+        }
+
+        public void SortColumnDes(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var column = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(column);
+
+            column.ZtoA();
+
+            SaveLists(lists);
+        }
     }
 }

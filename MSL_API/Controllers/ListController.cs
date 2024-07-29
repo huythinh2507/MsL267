@@ -14,19 +14,13 @@ namespace PresentationLayer.Controllers
         [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
         public IActionResult CreateList(string listName, string description)
         {
-            // Assuming _listService is your list service instance
             var list = _listService.CreateBlankList(listName, description);
+            var lists = _listService.LoadLists();
 
-            // Load the existing lists (or create a new one if none exist)
-            var savedLists = ListService.LoadLists() ?? [];
+            lists.Add(list);
 
-            // Add your new list to the existing (or new) list
-            savedLists.Add(list);
-
-            // Save the updated list of lists
-            _listService.SaveLists(savedLists);
-
-            return Ok(savedLists);
+            _listService.SaveLists(lists);
+            return Ok(list);
         }
 
 
@@ -36,73 +30,62 @@ namespace PresentationLayer.Controllers
         {
             try
             {
-                var savedLists = ListService.LoadLists();
+                var lists = _listService.LoadLists();
 
-                return Ok(savedLists);
+                return Ok(lists);
             }
             catch (Exception ex)
             {
-                // Handle any exceptions (e.g., file not found, invalid JSON, etc.)
                 return BadRequest($"Error reading lists: {ex.Message}");
             }
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("ListByID")]
         [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
-        public IActionResult GetListById(Guid id)
+        public IActionResult GetListById(Guid listId)
         {
-            var list = ListService.GetList(id);
-            if (list == null)
-                return NotFound();
+            var list = _listService.GetList(listId);
 
             return Ok(list);
         }
 
         [HttpPatch("columns")]
         [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
-        public IActionResult AddColumnToList(Guid id, [FromBody] ColumnRequest request)
+        public IActionResult AddColumn(Guid listId, [FromBody] ColumnRequest request)
         {
-            var lists = ListService.LoadLists();
-            var list = ListService.GetList(id);
-            var col = ListService.CreateColumnFromRequest(request);
-
-            ArgumentNullException.ThrowIfNull(list);
-            list.AddCol(col);
-
-            // Update lists with the modified list
-            var indexToUpdate = lists.FindIndex(l => l.Id == id);
-            lists[indexToUpdate] = list;
-
-            _listService.SaveLists(lists);
-
-            return Ok(lists);
+            try
+            {
+                _listService.AddColumn(listId, request);
+                var list = _listService.GetList(listId) ?? throw new ArgumentException("List not found");
+                return Ok(list);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         [HttpPatch("rows")]
         [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
-        public IActionResult AddRow(Guid listId, [FromBody] List<RowRequest> rowValues)
+        public IActionResult AddRow(Guid listId, [FromBody] List<string> request)
         {
-            var lists = ListService.LoadLists();
-            var list = ListService.GetList(listId);
-
-            ArgumentNullException.ThrowIfNull(list);
-
-            list.AddRow([.. rowValues]);
-
-            var indexToUpdate = lists.FindIndex(l => l.Id == listId);
-            lists[indexToUpdate] = list;
-
-            _listService.SaveLists(lists);
-
-            return Ok(lists); // Return the updated list
-
+            try
+            {
+                _listService.AddRow(listId, [.. request]);
+                var list = _listService.GetList(listId) ?? throw new ArgumentException("List not found");
+                return Ok(list);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         [HttpDelete("row")]
         [ProducesResponseType(typeof(List<List>), StatusCodes.Status200OK)]
         public IActionResult DeleteRow(Guid listId, Guid rowId)
         {
-            var lists = ListService.LoadLists();
+            var lists = _listService.LoadLists();
             var list = lists.Find(l => l.Id == listId);
 
             ArgumentNullException.ThrowIfNull(list);
@@ -123,7 +106,7 @@ namespace PresentationLayer.Controllers
         [ProducesResponseType(typeof(List<List>), StatusCodes.Status200OK)]
         public IActionResult DeleteCol(Guid listId, Guid colId)
         {
-            var lists = ListService.LoadLists();
+            var lists = _listService.LoadLists();
             var list = lists.Find(l => l.Id == listId);
 
             ArgumentNullException.ThrowIfNull(list);
@@ -133,43 +116,117 @@ namespace PresentationLayer.Controllers
             ArgumentNullException.ThrowIfNull(col);
 
             list.Columns.Remove(col);
-            
+
             _listService.SaveLists(lists);
 
             return Ok(lists); // Return the updated list
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{listID}")]
         [ProducesResponseType<List<List>>(StatusCodes.Status200OK)]
-        public IActionResult DeleteList(Guid id)
+        public IActionResult DeleteList(Guid listID)
         {
-            var lists = _listService.DeleteList(id);
+            var lists = _listService.DeleteList(listID);
 
             return Ok(lists);
         }
 
-        [HttpDelete("all lists")]
+        [HttpDelete("lists")]
         [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
         public IActionResult DeleteAllLists()
         {
-            var savedLists = ListService.LoadLists();
+            var savedLists = _listService.LoadLists();
 
             _listService.DeleteAll(savedLists);
 
             return Ok(savedLists);
         }
 
-        [HttpPut("favor/{id}")]
+        [HttpPut("favor/{listID}")]
         [ProducesResponseType<bool>(StatusCodes.Status200OK)]
-        public IActionResult FavorList(Guid id)
+        public IActionResult FavorList(Guid listID)
         {
-            _listService.FavorList(id);
+            _listService.FavorList(listID);
 
-            var list = ListService.GetList(id);
+            var list = _listService.GetList(listID);
             ArgumentNullException.ThrowIfNull(list);
             return Ok(list.IsFavorited);
         }
 
+        [HttpPut("sortColAsc/{listId}/{colId}")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        public IActionResult SortColumnAsc(Guid listId, Guid colId)
+        {
+            _listService.SortColumnAsc(listId, colId);
+            var list = GetListById(listId);
+
+            return Ok(list); // Return the sorted column
+        }
+
+        [HttpPut("sortColDes/{listId}/{colId}")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        public IActionResult SortColumnDes(Guid listId, Guid colId)
+        {
+            _listService.SortColumnDes(listId, colId);
+            var list = GetListById(listId);
+
+            return Ok(list); // Return the sorted column
+        }
+
+        [HttpGet("search/{listId}")]
+        [ProducesResponseType(typeof(List<Row>), StatusCodes.Status200OK)]
+        public IActionResult Search(Guid listId, [FromQuery] string query)
+        {
+            var result = _listService.SearchList(listId, query);
+    
+            return Ok(result);
+        }
+
+        [HttpGet("currentPage")]
+        [ProducesResponseType(typeof(List<Row>), StatusCodes.Status200OK)]
+        public IActionResult GetCurrentPage(Guid listId)
+        {
+            var list = _listService.GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            var currentPageRows = list.GetCurrentPage();
+            return Ok(currentPageRows);
+        }
+
+        [HttpPost("nextPage")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public IActionResult NextPage(Guid listId)
+        {
+            var list = _listService.GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            list.NextPage();
+
+            return Ok();
+        }
+
+        [HttpPost("previousPage")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public IActionResult PreviousPage(Guid listId)
+        {
+            var list = _listService.GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            list.PreviousPage();
+
+            return Ok();
+        }
+
+        [HttpGet("totalPages")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        public IActionResult GetTotalPages(Guid listId)
+        {
+            var list = _listService.GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            var totalPages = list.GetTotalPages();
+            return Ok(totalPages);
+        }
     }
 
 }

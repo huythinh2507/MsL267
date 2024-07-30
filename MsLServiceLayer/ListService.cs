@@ -31,7 +31,7 @@ namespace MsLServiceLayer
             _lists = [];
         }
 
-        
+
 
         public List CreateBlankList(string listName, string description, Color color, string icon)
         {
@@ -161,7 +161,7 @@ namespace MsLServiceLayer
             var lists = LoadLists();
             lists.Clear();
         }
-        
+
         public Column CreateColumnFromRequest(ColumnRequest columnRequest)
         {
             var column = new Column()
@@ -189,7 +189,7 @@ namespace MsLServiceLayer
 
             ArgumentNullException.ThrowIfNull(column);
 
-            column.AtoZ(); 
+            column.AtoZ();
 
             SaveLists(lists);
         }
@@ -307,5 +307,96 @@ namespace MsLServiceLayer
             var fileBytes = File.ReadAllBytes(filePath);
             return (fileBytes, fileName);
         }
+
+        public List DeleteRows(Guid listId, List<Guid> rowIds)
+        {
+
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            list.Rows.RemoveAll(r => rowIds.Contains(r.Id));
+            SaveLists(lists);
+
+            return list;
+        }
+
+        public object UpdateListProperties(Guid listId, string newName, string newDescription)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            list.Name = newName;
+            list.Description = newDescription;
+            SaveLists(lists);
+
+            return list;
+        }
+
+        public List UpdateCellValue(Guid listId, Guid rowId, Guid columnId, object newValue)
+        {
+            var lists = LoadLists();
+            var list = GetList(listId) ?? throw new ArgumentException($"List with ID {listId} not found.");
+            var column = list.Columns.Find(c => c.Id == columnId) ?? throw new ArgumentException($"Column with ID {columnId} not found in the list.");
+            var row = list.Rows.Find(r => r.Id == rowId) ?? throw new ArgumentException($"Row with ID {rowId} not found in the list.");
+            var cellIndex = list.Columns.IndexOf(column);
+            if (cellIndex == -1 || cellIndex >= row.Cells.Count)
+                throw new InvalidOperationException("Cell index out of range.");
+
+            var cell = row.Cells[cellIndex];
+
+            cell.Value = newValue;
+            cell.ColumnType = column.Type;
+
+            // Update the corresponding value in the column's CellValues list
+            var rowIndex = list.Rows.IndexOf(row);
+            if (rowIndex != -1 && rowIndex < column.CellValues.Count)
+            {
+                column.CellValues[rowIndex] = newValue;
+            }
+            else
+            {
+                column.CellValues.Add(newValue);
+            }
+
+            var indexToUpdate = lists.FindIndex(l => l.Id == listId);
+            lists[indexToUpdate] = list;
+
+            SaveLists(lists);
+            return list;
+        }
+
+        public List ImportFromCsv(string csvContent)
+        {
+            using var reader = new StringReader(csvContent);
+            using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+            var records = csv.GetRecords<dynamic>().ToList();
+
+            ArgumentNullException.ThrowIfNull(records);
+            var list = new List
+            {
+                Name = "Imported List",
+                Columns = records.FirstOrDefault() is IDictionary<string, object> firstRecord ? firstRecord.Keys.Select(k => new Column { Name = k }).ToList() : new List<Column>(),
+                Rows = records.Select(r =>
+                {
+                    return new Row
+                    {
+                        Cells = r is IDictionary<string, object> recordAsDict ? recordAsDict.Values.Select(v => new Cell { Value = v.ToString() ?? new object() }).ToList() : new List<Cell>()
+                    };
+                }).ToList()
+            };
+
+            var lists = LoadLists();
+
+            lists.Add(list);
+
+            SaveLists(lists);
+            return list;
+        }
+
+
     }
 }

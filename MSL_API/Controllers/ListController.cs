@@ -102,10 +102,8 @@ namespace PresentationLayer.Controllers
 
             _listService.SaveLists(lists);
 
-            return Ok(lists); 
+            return Ok(lists);
         }
-
-        // ListController.cs
 
         [HttpDelete("col")]
         [ProducesResponseType(typeof(List<List>), StatusCodes.Status200OK)]
@@ -115,7 +113,7 @@ namespace PresentationLayer.Controllers
             {
                 _listService.DeleteColumn(listId, colId);
                 var updatedLists = _listService.LoadLists();
-                return Ok(updatedLists); 
+                return Ok(updatedLists);
             }
             catch (Exception ex)
             {
@@ -180,7 +178,7 @@ namespace PresentationLayer.Controllers
         public IActionResult Search(Guid listId, [FromQuery] string query)
         {
             var result = _listService.SearchList(listId, query);
-    
+
             return Ok(result);
         }
 
@@ -269,6 +267,65 @@ namespace PresentationLayer.Controllers
             }
         }
 
+        [HttpDelete("DeleteRows/{listId}")]
+        [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
+        public IActionResult BulkDeleteRows(Guid listId, [FromBody] List<Guid> rowIds)
+        {
+            try
+            {
+                var updatedList = _listService.DeleteRows(listId, rowIds);
+                return Ok(updatedList);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPut("update/{listId}")]
+        [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
+        public IActionResult UpdateListProperties(Guid listId, [FromBody] UpdateListRequest request)
+        {
+            try
+            {
+                var updatedList = _listService.UpdateListProperties(listId, request.Name, request.Description);
+                return Ok(updatedList);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPut("updateCell")]
+        [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
+        public IActionResult UpdateCellValue(Guid listId, Guid rowId, Guid columnId, [FromBody] string newValue)
+        {
+            try
+            {
+                var updatedList = _listService.UpdateCellValue(listId, rowId, columnId, newValue);
+                return Ok(updatedList);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [HttpPost("import/csv")]
+        [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
+        public IActionResult ImportFromCsv([FromBody] string csvContent)
+        {
+            try
+            {
+                var importedList = _listService.ImportFromCsv(csvContent);
+                return Ok(importedList);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while importing from CSV: {ex.Message}");
+            }
+        }
     }
 
 }

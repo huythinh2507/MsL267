@@ -44,25 +44,5 @@ namespace MsLServiceLayer
                 csv.NextRecord();
             }
         }
-
-        public static class JsonOptions
-        {
-            public static readonly JsonSerializerOptions Default = new()
-            {
-                WriteIndented = true,
-                ReferenceHandler = ReferenceHandler.Preserve
-            };
-        }
-
-        public static string ExportToJson(List list)
-        {
-            return JsonSerializer.Serialize(list, JsonOptions.Default);
-        }
-
-
-        public static void SaveToJson(string json, string filePath)
-        {
-            File.WriteAllText(filePath, json);
-        }
     }
 }

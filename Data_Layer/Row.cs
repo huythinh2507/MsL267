@@ -2,9 +2,10 @@
 {
     public class Row
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
+
         public List<Cell> Cells { get; set; } = new List<Cell>();
-        
-        public readonly Guid Id = Guid.NewGuid();
+
         public void UpdateCells(List<object> newValues)
         {
             if (newValues.Count != Cells.Count)

@@ -52,6 +52,7 @@ namespace DataLayer
             }
 
             var newRow = new Row();
+
             int index = 0;
             foreach (var value in values)
             {

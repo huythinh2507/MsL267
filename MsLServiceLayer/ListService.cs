@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Text.Json;
+using CsvHelper;
 using DataLayer;
 using Newtonsoft.Json;
 using static MsLServiceLayer.ListExporter;
@@ -71,8 +73,6 @@ namespace MsLServiceLayer
 
             return newList;
         }
-
-        
 
         public List<List> GetLists()
         {
@@ -242,6 +242,70 @@ namespace MsLServiceLayer
             column.ZtoA();
 
             SaveLists(lists);
+        }
+
+        public void DeleteColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(r => r.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            list.Columns.Remove(col);
+
+            SaveLists(lists);
+        }
+
+        public (byte[] FileContents, string FileName) ExportToJson(Guid listId)
+        {
+            var list = GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            var json = JsonConvert.SerializeObject(list);
+            var fileName = $"{list.Name}_{DateTime.Now:yyyyMMddHHmmss}.json";
+            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+
+            File.WriteAllText(filePath, json);
+            var fileBytes = File.ReadAllBytes(filePath);
+
+            return (fileBytes, fileName);
+        }
+
+        public (byte[] FileContents, string FileName) ExportToCsv(Guid listId)
+        {
+            var list = GetList(listId);
+            ArgumentNullException.ThrowIfNull(list);
+
+            var fileName = $"{list.Name}_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+
+            using (var writer = new StreamWriter(filePath))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                // Write headers
+                foreach (var column in list.Columns)
+                {
+                    csv.WriteField(column.Name);
+                }
+                csv.NextRecord();
+
+                // Write data
+                foreach (var row in list.Rows)
+                {
+                    foreach (var cell in row.Cells)
+                    {
+                        csv.WriteField(cell.Value);
+                    }
+                    csv.NextRecord();
+                }
+            }
+
+            var fileBytes = File.ReadAllBytes(filePath);
+            return (fileBytes, fileName);
         }
     }
 }

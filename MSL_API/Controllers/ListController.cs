@@ -1,6 +1,10 @@
-﻿using DataLayer;
+﻿using CsvHelper;
+using DataLayer;
 using Microsoft.AspNetCore.Mvc;
 using MsLServiceLayer;
+using Newtonsoft.Json;
+using System.Globalization;
+using System.Text.Json;
 
 namespace PresentationLayer.Controllers
 {
@@ -96,31 +100,29 @@ namespace PresentationLayer.Controllers
 
             list.Rows.Remove(row);
 
-            // Save the modified lists
             _listService.SaveLists(lists);
 
-            return Ok(lists); // Return the updated list
+            return Ok(lists); 
         }
+
+        // ListController.cs
 
         [HttpDelete("col")]
         [ProducesResponseType(typeof(List<List>), StatusCodes.Status200OK)]
         public IActionResult DeleteCol(Guid listId, Guid colId)
         {
-            var lists = _listService.LoadLists();
-            var list = lists.Find(l => l.Id == listId);
-
-            ArgumentNullException.ThrowIfNull(list);
-
-            var col = list.Columns.Find(r => r.Id == colId);
-
-            ArgumentNullException.ThrowIfNull(col);
-
-            list.Columns.Remove(col);
-
-            _listService.SaveLists(lists);
-
-            return Ok(lists); // Return the updated list
+            try
+            {
+                _listService.DeleteColumn(listId, colId);
+                var updatedLists = _listService.LoadLists();
+                return Ok(updatedLists); 
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+            }
         }
+
 
         [HttpDelete("{listID}")]
         [ProducesResponseType<List<List>>(StatusCodes.Status200OK)]
@@ -227,6 +229,46 @@ namespace PresentationLayer.Controllers
             var totalPages = list.GetTotalPages();
             return Ok(totalPages);
         }
+
+
+        [HttpGet("export/json/{listId}")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        public IActionResult ExportToJson(Guid listId)
+        {
+            try
+            {
+                var (fileContents, fileName) = _listService.ExportToJson(listId);
+                return File(fileContents, "application/json", fileName);
+            }
+            catch (ArgumentNullException)
+            {
+                return NotFound($"List with ID {listId} not found.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while exporting to JSON: {ex.Message}");
+            }
+        }
+
+        [HttpGet("export/csv/{listId}")]
+        [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+        public IActionResult ExportToCsv(Guid listId)
+        {
+            try
+            {
+                var (fileContents, fileName) = _listService.ExportToCsv(listId);
+                return File(fileContents, "text/csv", fileName);
+            }
+            catch (ArgumentNullException)
+            {
+                return NotFound($"List with ID {listId} not found.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while exporting to CSV: {ex.Message}");
+            }
+        }
+
     }
 
 }

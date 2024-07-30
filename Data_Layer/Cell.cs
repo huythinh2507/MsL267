@@ -11,7 +11,5 @@ namespace DataLayer
     {
         public object Value { get; set; } = new object();
         public ColumnType ColumnType { get; set; }
-        
-
     }
 }

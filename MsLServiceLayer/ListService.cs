@@ -340,8 +340,13 @@ namespace MsLServiceLayer
         {
             var lists = LoadLists();
             var list = GetList(listId) ?? throw new ArgumentException($"List with ID {listId} not found.");
-            var column = list.Columns.Find(c => c.Id == columnId) ?? throw new ArgumentException($"Column with ID {columnId} not found in the list.");
-            var row = list.Rows.Find(r => r.Id == rowId) ?? throw new ArgumentException($"Row with ID {rowId} not found in the list.");
+            
+            var column = list.Columns.Find(c => c.Id == columnId) 
+                ?? throw new ArgumentException($"Column with ID {columnId} not found in the list.");
+
+            var row = list.Rows.Find(r => r.Id == rowId) 
+                ?? throw new ArgumentException($"Row with ID {rowId} not found in the list.");
+            
             var cellIndex = list.Columns.IndexOf(column);
             if (cellIndex == -1 || cellIndex >= row.Cells.Count)
                 throw new InvalidOperationException("Cell index out of range.");
@@ -369,9 +374,9 @@ namespace MsLServiceLayer
             return list;
         }
 
-        public List ImportFromCsv(string csvContent)
+        public List ImportFromCsv(Stream csvStream)
         {
-            using var reader = new StringReader(csvContent);
+            using var reader = new StreamReader(csvStream);
             using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
             var records = csv.GetRecords<dynamic>().ToList();
 
@@ -396,6 +401,8 @@ namespace MsLServiceLayer
             SaveLists(lists);
             return list;
         }
+
+
 
 
     }

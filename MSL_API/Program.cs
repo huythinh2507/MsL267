@@ -1,4 +1,5 @@
 using MsLServiceLayer;
+using PresentationLayer.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,5 +25,9 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseRouting();
 
 await app.RunAsync();

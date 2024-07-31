@@ -314,18 +314,23 @@ namespace PresentationLayer.Controllers
 
         [HttpPost("import/csv")]
         [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
-        public IActionResult ImportFromCsv([FromBody] string csvContent)
+        public Task<IActionResult> ImportFromCsv(IFormFile file)
         {
+            ArgumentNullException.ThrowIfNull(file);
+            ArgumentOutOfRangeException.ThrowIfZero(file.Length);
+            
             try
             {
-                var importedList = _listService.ImportFromCsv(csvContent);
-                return Ok(importedList);
+                var importedList = _listService.ImportFromCsv(file.OpenReadStream());
+                return Task.FromResult<IActionResult>(Ok(importedList));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred while importing from CSV: {ex.Message}");
+                return Task.FromResult<IActionResult>(StatusCode(500, $"An error occurred while importing from CSV: {ex.Message}"));
             }
         }
+
+
     }
 
 }

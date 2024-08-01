@@ -1,18 +1,14 @@
-﻿using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Globalization;
-using System.Text.Json;
 using CsvHelper;
 using DataLayer;
 using Newtonsoft.Json;
-using static MsLServiceLayer.ListExporter;
+using Newtonsoft.Json.Linq;
 
 namespace MsLServiceLayer
 {
     public class ListService
     {
-        private readonly string _filePath = MsLConstant.FilePath;
-
         public class ListTemplate : List
         {
             public ListTemplate()
@@ -30,9 +26,6 @@ namespace MsLServiceLayer
 
             _lists = [];
         }
-
-
-
         public List CreateBlankList(string listName, string description, Color color, string icon)
         {
             var list = new List
@@ -73,7 +66,6 @@ namespace MsLServiceLayer
 
             return newList;
         }
-
         public List<List> GetLists()
         {
             return _lists;
@@ -147,13 +139,19 @@ namespace MsLServiceLayer
         {
             var existingData = File.Exists(MsLConstant.FilePath) ? File.ReadAllText(MsLConstant.FilePath) : "[]";
             var savedLists = JsonConvert.DeserializeObject<List<List>>(existingData) ?? new List<List>();
+
+
             return savedLists;
         }
 
         public void SaveLists(List<List> lists)
         {
-            var updatedData = JsonConvert.SerializeObject(lists);
-            File.WriteAllText(_filePath, updatedData);
+            var settings = new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore,
+            };
+            var json = JsonConvert.SerializeObject(lists, Formatting.Indented, settings);
+            File.WriteAllText(MsLConstant.FilePath, json);
         }
 
         public void DeleteAllLists()
@@ -162,15 +160,44 @@ namespace MsLServiceLayer
             lists.Clear();
         }
 
-        public Column CreateColumnFromRequest(ColumnRequest columnRequest)
+        private Column CreateColumnFromRequest(ColumnRequest request)
         {
-            var column = new Column()
+            Column column = request.TypeId switch
             {
-                Name = columnRequest.Name,
-                Type = columnRequest.Type,
+                ColumnType.Text => new TextColumn(),
+                ColumnType.Number => new NumberColumn(),
+                ColumnType.DateAndTime => new DateColumn(),
+                ColumnType.Choice => new ChoiceColumn(),
+                ColumnType.Person => new PersonColumn(),
+                ColumnType.YesNo => new YesNoColumn(),
+                ColumnType.Hyperlink => new HyperlinkColumn(),
+                ColumnType.Image => new ImageColumn(),
+                ColumnType.Lookup => new LookupColumn(),
+                ColumnType.AverageRating => new AverageRatingColumn(),
+                ColumnType.MultipleLinesOfText => new MultipleLinesOfTextColumn(),
+                _ => throw new ArgumentException($"Unsupported column type: {request.TypeId}")
             };
+
+            column.Name = request.Name;
+
+            if (column is ChoiceColumn choiceColumn)
+            {
+                choiceColumn.Choices = new List<Choice>
+                {
+                    new() { Name = "Choice 1", Color = Color.Blue },
+                    new() { Name = "Choice 2", Color = Color.Green },
+                    new() { Name = "Choice 3", Color = Color.Yellow }
+                };
+            }
+
+            if (column is YesNoColumn yesnoColumn)
+            {
+                yesnoColumn.DefaultValue = false;
+            }
+
             return column;
         }
+
 
         public void DeleteAll(List<List> savedLists)
         {
@@ -200,7 +227,7 @@ namespace MsLServiceLayer
             return list.Search(query);
         }
 
-        public void AddColumn(Guid listId, ColumnRequest request)
+        public List<List> AddColumn(Guid listId, ColumnRequest request)
         {
             var lists = LoadLists();
             var list = GetList(listId) ?? throw new ArgumentException("List not found");
@@ -211,6 +238,8 @@ namespace MsLServiceLayer
             lists[indexToUpdate] = list;
 
             SaveLists(lists);
+
+            return lists;
         }
 
         public void AddRow(Guid listId, params object[] values)
@@ -340,13 +369,13 @@ namespace MsLServiceLayer
         {
             var lists = LoadLists();
             var list = GetList(listId) ?? throw new ArgumentException($"List with ID {listId} not found.");
-            
-            var column = list.Columns.Find(c => c.Id == columnId) 
+
+            var column = list.Columns.Find(c => c.Id == columnId)
                 ?? throw new ArgumentException($"Column with ID {columnId} not found in the list.");
 
-            var row = list.Rows.Find(r => r.Id == rowId) 
+            var row = list.Rows.Find(r => r.Id == rowId)
                 ?? throw new ArgumentException($"Row with ID {rowId} not found in the list.");
-            
+
             var cellIndex = list.Columns.IndexOf(column);
             if (cellIndex == -1 || cellIndex >= row.Cells.Count)
                 throw new InvalidOperationException("Cell index out of range.");
@@ -354,17 +383,17 @@ namespace MsLServiceLayer
             var cell = row.Cells[cellIndex];
 
             cell.Value = newValue;
-            cell.ColumnType = column.Type;
+            cell.ColumnType = column.TypeId;
 
-            // Update the corresponding value in the column's CellValues list
+            // Update the corresponding value in the column's Value list
             var rowIndex = list.Rows.IndexOf(row);
-            if (rowIndex != -1 && rowIndex < column.CellValues.Count)
+            if (rowIndex != -1 && rowIndex < column.Value.Count)
             {
-                column.CellValues[rowIndex] = newValue;
+                column.Value[rowIndex] = newValue;
             }
             else
             {
-                column.CellValues.Add(newValue);
+                column.Value.Add(newValue);
             }
 
             var indexToUpdate = lists.FindIndex(l => l.Id == listId);
@@ -403,6 +432,53 @@ namespace MsLServiceLayer
         }
 
 
+        //TODO: refactor
+        public string ModifyLists(JArray jsonArray)
+        {
+            foreach (var item in jsonArray)
+            {
+                if (item["Columns"] is JArray columnsArray) // Use "Columns" with correct casing
+                {
+                    foreach (var column in columnsArray)
+                    {
+                        if (column is JObject columnObject)
+                        {
+                            var typeId = columnObject["TypeId"]?.Value<int>() ?? 0; // Use "TypeId" with correct casing
+
+                            // Convert the typeId to ColumnType enum
+                            if (Enum.IsDefined(typeof(ColumnType), typeId))
+                            {
+                                var columnType = (ColumnType)typeId;
+
+                                if (columnType != ColumnType.Choice)
+                                {
+                                    columnObject.Remove("Choices"); 
+                                }
+
+                                if (columnType == ColumnType.Choice)
+                                {
+                                    columnObject.Remove("Value"); 
+                                }
+
+                                if (columnType == ColumnType.YesNo)
+                                {
+                                    columnObject.Remove("Value"); 
+                                }
+
+                                if (columnType != ColumnType.Text)
+                                {
+                                    columnObject.Remove("AtoZFilter");
+                                    columnObject.Remove("ZtoAFilter");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            var result = jsonArray.ToString(Formatting.Indented);
+            return result;
+        }
 
 
     }

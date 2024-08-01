@@ -18,8 +18,16 @@ namespace TestMSL
             // Create a sample list
             var list = (controller.CreateList("My List", "A sample description") as OkObjectResult)?.Value as List;
 
-            // Assert
             Assert.NotNull(list);
+            list.AddCol(new ChoiceColumn
+            {
+               Name = "Name",
+            });
+            list.AddCol(new HyperlinkColumn
+            {
+                Name = "Name",
+            });
+
             Assert.Equal("My List", list.Name);
             Assert.Equal("A sample description", list.Description);
         }
@@ -98,7 +106,7 @@ namespace TestMSL
             var request = new ColumnRequest()
             {
                 Name = "3h1",
-                Type = 0
+                TypeId = 0
             };
 
             Assert.NotNull(list);

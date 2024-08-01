@@ -3,6 +3,7 @@ using DataLayer;
 using Microsoft.AspNetCore.Mvc;
 using MsLServiceLayer;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Globalization;
 using System.Text.Json;
 
@@ -27,21 +28,15 @@ namespace PresentationLayer.Controllers
             return Ok(list);
         }
 
-
         [HttpGet("allLists")]
         [ProducesResponseType(typeof(IEnumerable<List>), StatusCodes.Status200OK)]
         public IActionResult GetAllLists()
         {
-            try
-            {
-                var lists = _listService.LoadLists();
+            var lists = _listService.LoadLists();
 
-                return Ok(lists);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Error reading lists: {ex.Message}");
-            }
+            var result = _listService.ModifyLists(JArray.FromObject(lists));
+
+            return Content(result, "application/json");
         }
 
         [HttpGet("ListByID")]
@@ -50,18 +45,21 @@ namespace PresentationLayer.Controllers
         {
             var list = _listService.GetList(listId);
 
-            return Ok(list);
+            ArgumentNullException.ThrowIfNull(list);
+            var result = _listService.ModifyLists(JArray.FromObject(list));
+
+            return Content(result, "application/json");
         }
 
         [HttpPatch("columns")]
-        [ProducesResponseType(typeof(List), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(List<List>), StatusCodes.Status200OK)]
         public IActionResult AddColumn(Guid listId, [FromBody] ColumnRequest request)
         {
             try
             {
                 _listService.AddColumn(listId, request);
-                var list = _listService.GetList(listId) ?? throw new ArgumentException("List not found");
-                return Ok(list);
+
+                return GetAllLists();
             }
             catch (ArgumentException ex)
             {
@@ -76,8 +74,8 @@ namespace PresentationLayer.Controllers
             try
             {
                 _listService.AddRow(listId, [.. request]);
-                var list = _listService.GetList(listId) ?? throw new ArgumentException("List not found");
-                return Ok(list);
+
+                return GetAllLists();
             }
             catch (ArgumentException ex)
             {
@@ -126,9 +124,9 @@ namespace PresentationLayer.Controllers
         [ProducesResponseType<List<List>>(StatusCodes.Status200OK)]
         public IActionResult DeleteList(Guid listID)
         {
-            var lists = _listService.DeleteList(listID);
+            _listService.DeleteList(listID);
 
-            return Ok(lists);
+            return GetAllLists();
         }
 
         [HttpDelete("lists")]
@@ -139,7 +137,7 @@ namespace PresentationLayer.Controllers
 
             _listService.DeleteAll(savedLists);
 
-            return Ok(savedLists);
+            return GetAllLists();
         }
 
         [HttpPut("favor/{listID}")]
@@ -148,9 +146,7 @@ namespace PresentationLayer.Controllers
         {
             _listService.FavorList(listID);
 
-            var list = _listService.GetList(listID);
-            ArgumentNullException.ThrowIfNull(list);
-            return Ok(list.IsFavorited);
+            return GetAllLists();
         }
 
         [HttpPut("sortColAsc/{listId}/{colId}")]
@@ -158,9 +154,8 @@ namespace PresentationLayer.Controllers
         public IActionResult SortColumnAsc(Guid listId, Guid colId)
         {
             _listService.SortColumnAsc(listId, colId);
-            var list = GetListById(listId);
 
-            return Ok(list); // Return the sorted column
+            return GetListById(listId); // Return the sorted column
         }
 
         [HttpPut("sortColDes/{listId}/{colId}")]
@@ -168,9 +163,8 @@ namespace PresentationLayer.Controllers
         public IActionResult SortColumnDes(Guid listId, Guid colId)
         {
             _listService.SortColumnDes(listId, colId);
-            var list = GetListById(listId);
 
-            return Ok(list); // Return the sorted column
+            return GetListById(listId); // Return the sorted column
         }
 
         [HttpGet("search/{listId}")]
@@ -318,7 +312,7 @@ namespace PresentationLayer.Controllers
         {
             ArgumentNullException.ThrowIfNull(file);
             ArgumentOutOfRangeException.ThrowIfZero(file.Length);
-            
+
             try
             {
                 var importedList = _listService.ImportFromCsv(file.OpenReadStream());

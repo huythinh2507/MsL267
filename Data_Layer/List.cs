@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace DataLayer
@@ -33,7 +34,7 @@ namespace DataLayer
         public void AddCol<T>(T col) where T : Column
         {
             Columns.Add(col);
-            col.ParentID = this.Id;
+            col.ListID = this.Id;
 
             // Update existing rows to match the new column count
             Rows.ForEach(row =>
@@ -42,7 +43,6 @@ namespace DataLayer
                 row.Cells.AddRange(Enumerable.Repeat(new Cell(), cellsToAdd));
             });
         }
-
 
         public void AddRow(params object[] values)
         {
@@ -59,9 +59,30 @@ namespace DataLayer
                 var column = Columns[index];
                 var cell = new Cell
                 {
-                    ColumnType = column.Type,
-                    Value = value
+                    ColumnType = column.TypeId
                 };
+
+                // Handle HyperlinkColumn separately
+                if (column is HyperlinkColumn)
+                {
+                    if (value is Tuple<string, string> hyperlinkValue)
+                    {
+                        cell.Value = new HyperlinkColumn
+                        {
+                            HyperlinkUrl = hyperlinkValue.Item1,
+                            DisplayText = hyperlinkValue.Item2
+                        };
+                    }
+                    else
+                    {
+                        throw new ArgumentException("HyperlinkColumn values must be of type Tuple<string, string>.");
+                    }
+                }
+                else
+                {
+                    cell.Value = value;
+                }
+
                 newRow.Cells.Add(cell);
                 column.AddCellValue(value);
                 index++;
@@ -69,6 +90,7 @@ namespace DataLayer
 
             Rows.Add(newRow);
         }
+
 
         public void MoveColumnLeft(int index)
         {

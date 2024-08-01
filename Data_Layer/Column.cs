@@ -1,7 +1,6 @@
-﻿
-
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Drawing;
-using System.Text.Json.Serialization;
 
 namespace DataLayer
 {
@@ -9,13 +8,16 @@ namespace DataLayer
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
-        public ColumnType Type { get; set; }
-        public List<object> CellValues { get; set; } = new List<object>();
+        public ColumnType TypeId { get; set; }
+        public List<object> Value { get; set; } = new List<object>();
         public string Description { get; set; } = string.Empty;
         public bool IsHidden { get; set; } = false;
         public int Width { get; set; } = MsLConstant.DefaultColWidth;
-
-        public Guid ParentID { get; set; } = Guid.Empty;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public List<Choice>? Choices { get; set; }
+        public Guid ListID { get; set; } = Guid.Empty;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public object? DefaultValue { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool AtoZFilter { get; set; } = false;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool ZtoAFilter { get; set; } = false;
 
         public void Hide()
         {
@@ -39,40 +41,44 @@ namespace DataLayer
 
         public void AddCellValue(object value)
         {
-            CellValues.Add(value);
+            Value.Add(value);
         }
 
         public void AtoZ()
         {
-            var sortedValues = CellValues.OfType<string>()
+
+            var sortedValues = Value.OfType<string>()
                                          .OrderBy(val => val, StringComparer.Ordinal)
                                          .Cast<object>()
                                          .ToList();
-
+            AtoZFilter = true;
+            ZtoAFilter = false;
             UpdateCellValues(sortedValues);
         }
 
         public void ZtoA()
         {
-            var sortedValues = CellValues.OfType<string>()
+            var sortedValues = Value.OfType<string>()
                                          .OrderByDescending(val => val, StringComparer.Ordinal)
                                          .Cast<object>()
                                          .ToList();
-
+            AtoZFilter = false;
+            ZtoAFilter = true;
             UpdateCellValues(sortedValues);
         }
 
         private void UpdateCellValues(List<object> sortedValues)
         {
             int sortedIndex = 0;
-            CellValues = CellValues.Select(val => val is string ? sortedValues[sortedIndex++] : val).ToList();
+            Value = Value.Select(val => val is string ? sortedValues[sortedIndex++] : val).ToList();
         }
 
         public List<object> FilterBy(Func<object, bool> predicate)
         {
-            return CellValues.Where(predicate).ToList();
+            return Value.Where(predicate).ToList();
         }
     }
+
     public class PersonColumn : Column
     {
         public string DefaultValue { get; set; } = string.Empty;
@@ -80,7 +86,7 @@ namespace DataLayer
 
         public PersonColumn()
         {
-            Type = ColumnType.Person;
+            TypeId = ColumnType.Person;
         }
     }
 
@@ -90,7 +96,7 @@ namespace DataLayer
 
         public YesNoColumn()
         {
-            Type = ColumnType.YesNo;
+            TypeId = ColumnType.YesNo;
         }
     }
 
@@ -98,9 +104,14 @@ namespace DataLayer
     {
         public string DefaultValue { get; set; } = string.Empty;
 
+        public  string HyperlinkUrl { get; set; }
+
+        public  string DisplayText { get; set; }
         public HyperlinkColumn()
         {
-            Type = ColumnType.Hyperlink;
+            TypeId = ColumnType.Hyperlink;
+            HyperlinkUrl = string.Empty;
+            DisplayText = string.Empty;
         }
     }
 
@@ -110,7 +121,7 @@ namespace DataLayer
 
         public ImageColumn()
         {
-            Type = ColumnType.Image;
+            TypeId = ColumnType.Image;
         }
 
 
@@ -118,12 +129,11 @@ namespace DataLayer
 
     public class LookupColumn : Column
     {
-        public Guid ListID { get; set; }
         public Guid ColumnID { get; set; }
 
         public LookupColumn()
         {
-            Type = ColumnType.Lookup;
+            TypeId = ColumnType.Lookup;
         }
     }
 
@@ -133,7 +143,7 @@ namespace DataLayer
 
         public AverageRatingColumn()
         {
-            Type = ColumnType.AverageRating;
+            TypeId = ColumnType.AverageRating;
         }
 
         public double GetAverageRating()
@@ -148,7 +158,7 @@ namespace DataLayer
 
         public MultipleLinesOfTextColumn()
         {
-            Type = ColumnType.MultipleLinesOfText;
+            TypeId = ColumnType.MultipleLinesOfText;
         }
     }
 
@@ -161,7 +171,7 @@ namespace DataLayer
 
         public TextColumn()
         {
-            Type = ColumnType.Text;
+            TypeId = ColumnType.Text;
         }
     }
 
@@ -171,13 +181,13 @@ namespace DataLayer
 
         public NumberColumn()
         {
-            Type = ColumnType.Number;
+            TypeId = ColumnType.Number;
         }
     }
 
     public class ChoiceColumn : Column
     {
-        public List<Choice> Choices { get; set; } =
+        public new List<Choice> Choices { get; set; } =
         [
             new Choice { Name = "Choice 1", Color = Color.Blue },
             new Choice { Name = "Choice 2", Color = Color.Green },
@@ -188,7 +198,7 @@ namespace DataLayer
 
         public ChoiceColumn()
         {
-            Type = ColumnType.Choice;
+            TypeId = ColumnType.Choice;
         }
     }
 
@@ -198,7 +208,7 @@ namespace DataLayer
 
         public DateColumn()
         {
-            Type = ColumnType.DateAndTime;
+            TypeId = ColumnType.DateAndTime;
         }
     }
 

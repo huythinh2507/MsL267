@@ -13,7 +13,7 @@ namespace TestMSL
         public void TestCreateList()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             // Create a sample list
             var list = (controller.CreateList("My List", "A sample description") as OkObjectResult)?.Value as List;
@@ -36,7 +36,7 @@ namespace TestMSL
         public void TestGetAllLists()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             // Create a sample list
             var lists = (controller.GetAllLists() as OkObjectResult)?.Value as List<List>;
@@ -52,7 +52,7 @@ namespace TestMSL
         {
             // Arrange
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             var lists = (controller.GetAllLists() as OkObjectResult)?.Value as List<List>;
 
@@ -72,7 +72,7 @@ namespace TestMSL
         {
             // Arrange
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             var lists = (controller.GetAllLists() as OkObjectResult)?.Value as List<List>;
 
@@ -96,7 +96,7 @@ namespace TestMSL
         {
             // Arrange
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             var lists = (controller.GetAllLists() as OkObjectResult)?.Value as List<List>;
 
@@ -118,7 +118,7 @@ namespace TestMSL
         {
             // Arrange
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             var lists = (controller.GetAllLists() as OkObjectResult)?.Value as List<List>;
 
@@ -137,7 +137,7 @@ namespace TestMSL
         public void TestAddRow()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
             var rowData = new List<string> { "Value1", "Value2", "Value3" };
 
@@ -151,7 +151,7 @@ namespace TestMSL
         public void TestDeleteRow()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
             var rowId = Guid.NewGuid();
 
@@ -165,7 +165,7 @@ namespace TestMSL
         public void TestDeleteAllLists()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             var result = controller.DeleteAllLists() as OkObjectResult;
 
@@ -178,7 +178,7 @@ namespace TestMSL
         {
             var mockListService = new Mock<ListService>();
             mockListService.Setup(s => s.GetList(It.IsAny<Guid>())).Returns(new List { IsFavorited = true });
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
 
             var result = controller.FavorList(listId) as OkObjectResult;
@@ -192,7 +192,7 @@ namespace TestMSL
         public void TestSortColumnAsc()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
             var colId = Guid.NewGuid();
 
@@ -205,7 +205,7 @@ namespace TestMSL
         public void TestSortColumnDes()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
             var colId = Guid.NewGuid();
 
@@ -218,7 +218,7 @@ namespace TestMSL
         public void TestSearch()
         {
             var mockListService = new Mock<ListService>();
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
             var query = "test";
 
@@ -233,7 +233,7 @@ namespace TestMSL
         {
             var mockListService = new Mock<ListService>();
             mockListService.Setup(s => s.GetList(It.IsAny<Guid>())).Returns(new List());
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
 
             var result = controller.GetCurrentPage(listId) as OkObjectResult;
@@ -247,7 +247,7 @@ namespace TestMSL
         {
             var mockListService = new Mock<ListService>();
             mockListService.Setup(s => s.GetList(It.IsAny<Guid>())).Returns(new List());
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
 
             var result = controller.NextPage(listId) as OkResult;
@@ -261,7 +261,7 @@ namespace TestMSL
         {
             var mockListService = new Mock<ListService>();
             mockListService.Setup(s => s.GetList(It.IsAny<Guid>())).Returns(new List());
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
 
             var result = controller.PreviousPage(listId) as OkResult;
@@ -275,7 +275,7 @@ namespace TestMSL
         {
             var mockListService = new Mock<ListService>();
             mockListService.Setup(s => s.GetList(It.IsAny<Guid>())).Returns(new List());
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
             var listId = Guid.NewGuid();
 
             var result = controller.GetTotalPages(listId) as OkObjectResult;
@@ -296,7 +296,7 @@ namespace TestMSL
             mockListService.Setup(s => s.ExportToJson(testListId))
                 .Returns((testFileContents, testFileName));
 
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             // Act
             var result = controller.ExportToJson(testListId) as FileContentResult;
@@ -320,7 +320,7 @@ namespace TestMSL
             mockListService.Setup(s => s.ExportToCsv(testListId))
                 .Returns((testFileContents, testFileName));
 
-            var controller = new ListController(mockListService.Object);
+            var controller = new ControllerService(mockListService.Object);
 
             // Act
             var result = controller.ExportToCsv(testListId) as FileContentResult;

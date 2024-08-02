@@ -77,11 +77,27 @@ namespace DataLayer
         {
             return Value.Where(predicate).ToList();
         }
+
+        public void AddValueToCell(Cell cell, object value)
+        {
+            if (value is Tuple<string, string> hyperlinkValue)
+            {
+                cell.Value = new HyperlinkColumn
+                {
+                    HyperlinkUrl = hyperlinkValue.Item1,
+                    DisplayText = hyperlinkValue.Item2
+                };
+            }
+            else
+            {
+                throw new ArgumentException("HyperlinkColumn values must be of type Tuple<string, string>.");
+            }
+        }
     }
 
     public class PersonColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool ShowProfilePic { get; set; } = false;
 
         public PersonColumn()
@@ -92,7 +108,7 @@ namespace DataLayer
 
     public class YesNoColumn : Column
     {
-        public bool DefaultValue { get; set; } = false;
+        public new bool DefaultValue { get; set; } = false;
 
         public YesNoColumn()
         {
@@ -102,7 +118,7 @@ namespace DataLayer
 
     public class HyperlinkColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
         public  string HyperlinkUrl { get; set; }
 
@@ -117,7 +133,7 @@ namespace DataLayer
 
     public class ImageColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
         public ImageColumn()
         {
@@ -154,7 +170,7 @@ namespace DataLayer
 
     public class MultipleLinesOfTextColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
         public MultipleLinesOfTextColumn()
         {
@@ -164,10 +180,10 @@ namespace DataLayer
 
     public class TextColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool CalculatedValue { get; set; } = false;
-        public bool AtoZFilter { get; set; } = false;
-        public bool ZtoAFilter { get; set; } = false;
+        public new bool AtoZFilter { get; set; } = false;
+        public new bool ZtoAFilter { get; set; } = false;
 
         public TextColumn()
         {
@@ -177,7 +193,7 @@ namespace DataLayer
 
     public class NumberColumn : Column
     {
-        public double DefaultValue { get; set; } = 0.0;
+        public new double DefaultValue { get; set; } = 0.0;
 
         public NumberColumn()
         {
@@ -193,7 +209,7 @@ namespace DataLayer
             new Choice { Name = "Choice 2", Color = Color.Green },
             new Choice { Name = "Choice 3", Color = Color.Yellow }
         ];
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool AddValuesManually { get; set; } = false;
 
         public ChoiceColumn()
@@ -204,7 +220,7 @@ namespace DataLayer
 
     public class DateColumn : Column
     {
-        public DateTime DefaultValue { get; set; } = DateTime.Now;
+        public new DateTime DefaultValue { get; set; } = DateTime.Now;
 
         public DateColumn()
         {

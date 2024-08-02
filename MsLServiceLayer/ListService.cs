@@ -17,6 +17,8 @@ namespace MsLServiceLayer
         }
 
         private readonly List<List> _lists;
+        private static readonly string[] value = ["Value"];
+        private static readonly string[] valueArray = ["Value"];
 
         public ListService()
         {
@@ -431,55 +433,128 @@ namespace MsLServiceLayer
             return list;
         }
 
-
-        //TODO: refactor
         public string ModifyLists(JArray jsonArray)
         {
+            var propertiesToRemove = new Dictionary<ColumnType, string[]>
+            {
+                { ColumnType.Choice, valueArray },
+                { ColumnType.YesNo, value }
+            };
+
+            var defaultPropertiesToRemove = new[] { "Choices", "AtoZFilter", "ZtoAFilter" };
+
             foreach (var item in jsonArray)
             {
-                if (item["Columns"] is JArray columnsArray) // Use "Columns" with correct casing
-                {
-                    foreach (var column in columnsArray)
-                    {
-                        if (column is JObject columnObject)
-                        {
-                            var typeId = columnObject["TypeId"]?.Value<int>() ?? 0; // Use "TypeId" with correct casing
+                var columnsArray = item["Columns"] as JArray;
+                columnsArray?.Select(column => column as JObject)
+                             .Where(columnObject => columnObject != null)
+                             .ToList()
+                             .ForEach(columnObject =>
+                             {
+                                 ArgumentNullException.ThrowIfNull(columnObject);
 
-                            // Convert the typeId to ColumnType enum
-                            if (Enum.IsDefined(typeof(ColumnType), typeId))
-                            {
-                                var columnType = (ColumnType)typeId;
+                                 var typeId = columnObject["TypeId"]?.Value<int>() ?? 0;
+                                 var columnType = Enum.IsDefined(typeof(ColumnType), typeId)
+                                 ? (ColumnType)typeId
+                                 : ColumnType.Text; 
 
-                                if (columnType != ColumnType.Choice)
-                                {
-                                    columnObject.Remove("Choices"); 
-                                }
+                                 var toRemove = columnType switch
+                                 {
+                                     ColumnType.Text => ["Choices"],
+                                     ColumnType.Choice => ["AtoZFilter", "ZtoAFilter"],
+                                     _ => defaultPropertiesToRemove
+                                 };
 
-                                if (columnType == ColumnType.Choice)
-                                {
-                                    columnObject.Remove("Value"); 
-                                }
+                                 if (propertiesToRemove.TryGetValue(columnType, out var additionalProperties))
+                                 {
+                                     toRemove = [.. toRemove, .. additionalProperties];
+                                 }
 
-                                if (columnType == ColumnType.YesNo)
-                                {
-                                    columnObject.Remove("Value"); 
-                                }
-
-                                if (columnType != ColumnType.Text)
-                                {
-                                    columnObject.Remove("AtoZFilter");
-                                    columnObject.Remove("ZtoAFilter");
-                                }
-                            }
-                        }
-                    }
-                }
+                                 toRemove.ToList().ForEach(prop => columnObject.Remove(prop));
+                             });
             }
 
-            var result = jsonArray.ToString(Formatting.Indented);
-            return result;
+            return jsonArray.ToString(Formatting.Indented);
         }
 
+        public void DeleteRow(Guid listId, Guid rowId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
 
+            ArgumentNullException.ThrowIfNull(list);
+
+            var row = list.Rows.Find(r => r.Id == rowId);
+
+            ArgumentNullException.ThrowIfNull(row);
+
+            list.Rows.Remove(row);
+
+            SaveLists(lists);
+        }
+
+        public void HideColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Hide();
+
+            SaveLists(lists);
+        }
+
+        public void WidenColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Widen();
+
+            SaveLists(lists);
+        }
+
+        public void NarrowColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Narrow();
+
+            SaveLists(lists);
+        }
+
+        public void RenameColumn(Guid listId, Guid colId, string newName)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Rename(newName);
+
+            SaveLists(lists);
+        }
     }
 }

@@ -25,7 +25,6 @@ namespace MsLServiceLayer
             var path = MsLConstant.FilePath;
             ArgumentNullException.ThrowIfNull(path);
 
-
             _lists = [];
         }
         public List CreateBlankList(string listName, string description, Color color, string icon)
@@ -36,7 +35,7 @@ namespace MsLServiceLayer
                 Name = listName,
                 Description = description,
                 Columns = [],
-                Color = color,
+                Color = color.ToString(),
                 Icon = icon,
                 Rows = []
             };
@@ -61,7 +60,7 @@ namespace MsLServiceLayer
                 Name = newName,
                 Description = description,
                 Columns = existingList.Columns,
-                Color = color ?? Color.Transparent,
+                Color = color.ToString() ?? Color.Transparent.ToString(),
                 Icon = icon,
                 Rows = existingList.Rows
             };
@@ -139,11 +138,8 @@ namespace MsLServiceLayer
 
         public List<List> LoadLists()
         {
-            var existingData = File.Exists(MsLConstant.FilePath) ? File.ReadAllText(MsLConstant.FilePath) : "[]";
-            var savedLists = JsonConvert.DeserializeObject<List<List>>(existingData) ?? new List<List>();
-
-
-            return savedLists;
+            var lists = new Database().GetLists().Result.ToList();
+            return lists;
         }
 
         public void SaveLists(List<List> lists)
@@ -186,9 +182,9 @@ namespace MsLServiceLayer
             {
                 choiceColumn.Choices = new List<Choice>
                 {
-                    new() { Name = "Choice 1", Color = Color.Blue },
-                    new() { Name = "Choice 2", Color = Color.Green },
-                    new() { Name = "Choice 3", Color = Color.Yellow }
+                    new() { Name = "Choice 1", Color = Color.Blue.ToString() },
+                    new() { Name = "Choice 2", Color = Color.Green.ToString() },
+                    new() { Name = "Choice 3", Color = Color.Yellow.ToString() }
                 };
             }
 
@@ -200,12 +196,7 @@ namespace MsLServiceLayer
             return column;
         }
 
-
-        public void DeleteAll(List<List> savedLists)
-        {
-            savedLists.Clear();
-            SaveLists(savedLists);
-        }
+        
 
         public void SortColumnAsc(Guid listId, Guid colId)
         {
@@ -223,11 +214,15 @@ namespace MsLServiceLayer
             SaveLists(lists);
         }
 
-        public List<Row> SearchList(Guid listId, string query)
+        public async Task<List<Row>> SearchList(Guid listId, string query)
         {
-            var list = _lists.Find(l => l.Id == listId) ?? throw new ArgumentException("List not found.");
-            return list.Search(query);
+            using var db = new Database();
+            var lists = await db.GetLists();
+
+            var list = lists.FirstOrDefault(l => l.Id == listId);
+            return list == null ? throw new ArgumentException("List not found.", nameof(listId)) : list.Search(query);
         }
+
 
         public List<List> AddColumn(Guid listId, ColumnRequest request)
         {
@@ -244,7 +239,7 @@ namespace MsLServiceLayer
             return lists;
         }
 
-        public void AddRow(Guid listId, params object[] values)
+        public void AddRow(Guid listId, params string[] values)
         {
             var lists = LoadLists();
             var list = GetList(listId);
@@ -367,7 +362,7 @@ namespace MsLServiceLayer
             return list;
         }
 
-        public List UpdateCellValue(Guid listId, Guid rowId, Guid columnId, object newValue)
+        public List UpdateCellValue(Guid listId, Guid rowId, Guid columnId, string newValue)
         {
             var lists = LoadLists();
             var list = GetList(listId) ?? throw new ArgumentException($"List with ID {listId} not found.");
@@ -420,7 +415,7 @@ namespace MsLServiceLayer
                 {
                     return new Row
                     {
-                        Cells = r is IDictionary<string, object> recordAsDict ? recordAsDict.Values.Select(v => new Cell { Value = v.ToString() ?? new object() }).ToList() : new List<Cell>()
+                        Cells = r is IDictionary<string, object> recordAsDict ? recordAsDict.Values.Select(v => new Cell { Value = v.ToString() ?? string.Empty }).ToList() : new List<Cell>()
                     };
                 }).ToList()
             };
@@ -488,7 +483,7 @@ namespace MsLServiceLayer
 
             ArgumentNullException.ThrowIfNull(row);
 
-            list.Rows.Remove(row);
+            list.Delete(row);
 
             SaveLists(lists);
         }
@@ -556,5 +551,38 @@ namespace MsLServiceLayer
 
             SaveLists(lists);
         }
+
+        public void DeleteAll(List<List> savedLists)
+        {
+            savedLists.Clear();
+            SaveLists(savedLists);
+        }
+
+        public void DeleteAll()
+        {
+            using var db = new Database();
+            var lists = db.GetLists();
+
+            foreach (var list in lists.Result)
+            {
+                // Delete rows and cells associated with the list
+                foreach (var row in list.Rows)
+                {
+                    db.Rows.Remove(row);
+                }
+
+                // Delete columns associated with the list
+                foreach (var column in list.Columns)
+                {
+                    db.Columns.Remove(column);
+                }
+
+                // Delete the list itself
+                db.Lists.Remove(list);
+            }
+
+            db.SaveChanges();
+        }
+
     }
 }

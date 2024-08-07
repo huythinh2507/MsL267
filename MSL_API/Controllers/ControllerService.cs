@@ -1,5 +1,5 @@
-﻿using DataLayer;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using DataLayer;
 using MsLServiceLayer;
 using Newtonsoft.Json.Linq;
 
@@ -10,6 +10,20 @@ namespace PresentationLayer.Controllers
     public class ControllerService(ListService listService) : ControllerBase
     {
         private readonly ListService _listService = listService;
+
+        [HttpGet("search/{listId}")]
+        [ProducesResponseType(typeof(List<Row>), StatusCodes.Status200OK)]
+        public IActionResult Search(Guid listId, [FromQuery] string query)
+        {
+            using var db = new Database();
+            var list = db.GetList(listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var result = _listService.SearchList(listId, query);
+
+            return Ok(result);
+        }
 
         [HttpGet("allLists")]
         [ProducesResponseType(typeof(IEnumerable<List>), StatusCodes.Status200OK)]
@@ -33,15 +47,7 @@ namespace PresentationLayer.Controllers
 
             return Content(result, "application/json");
         }
-
-        [HttpGet("search/{listId}")]
-        [ProducesResponseType(typeof(List<Row>), StatusCodes.Status200OK)]
-        public IActionResult Search(Guid listId, [FromQuery] string query)
-        {
-            var result = _listService.SearchList(listId, query);
-
-            return Ok(result);
-        }
+        
 
         [HttpGet("currentPage")]
         [ProducesResponseType(typeof(List<Row>), StatusCodes.Status200OK)]

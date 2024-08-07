@@ -9,13 +9,13 @@ namespace DataLayer
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
         public ColumnType TypeId { get; set; }
-        public List<object> Value { get; set; } = new List<object>();
+        public List<string> Value { get; set; } = [string.Empty];
         public string Description { get; set; } = string.Empty;
         public bool IsHidden { get; set; } = false;
         public int Width { get; set; } = MsLConstant.DefaultColWidth;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public List<Choice>? Choices { get; set; }
         public Guid ListID { get; set; } = Guid.Empty;
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public object? DefaultValue { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string? DefaultValue { get; set; }
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool AtoZFilter { get; set; } = false;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool ZtoAFilter { get; set; } = false;
 
@@ -39,7 +39,7 @@ namespace DataLayer
             Name = newName;
         }
 
-        public void AddCellValue(object value)
+        public void AddCellValue(string value)
         {
             Value.Add(value);
         }
@@ -49,7 +49,6 @@ namespace DataLayer
 
             var sortedValues = Value.OfType<string>()
                                          .OrderBy(val => val, StringComparer.Ordinal)
-                                         .Cast<object>()
                                          .ToList();
             AtoZFilter = true;
             ZtoAFilter = false;
@@ -60,38 +59,21 @@ namespace DataLayer
         {
             var sortedValues = Value.OfType<string>()
                                          .OrderByDescending(val => val, StringComparer.Ordinal)
-                                         .Cast<object>()
                                          .ToList();
             AtoZFilter = false;
             ZtoAFilter = true;
             UpdateCellValues(sortedValues);
         }
 
-        private void UpdateCellValues(List<object> sortedValues)
+        private void UpdateCellValues(List<string> sortedValues)
         {
             int sortedIndex = 0;
-            Value = Value.Select(val => val is string ? sortedValues[sortedIndex++] : val).ToList();
+            Value = Value.Select(val => (val != null) ? sortedValues[sortedIndex++] : val).ToList();
         }
 
         public List<object> FilterBy(Func<object, bool> predicate)
         {
             return Value.Where(predicate).ToList();
-        }
-
-        public void AddValueToCell(Cell cell, object value)
-        {
-            if (value is Tuple<string, string> hyperlinkValue)
-            {
-                cell.Value = new HyperlinkColumn
-                {
-                    HyperlinkUrl = hyperlinkValue.Item1,
-                    DisplayText = hyperlinkValue.Item2
-                };
-            }
-            else
-            {
-                throw new ArgumentException("HyperlinkColumn values must be of type Tuple<string, string>.");
-            }
         }
     }
 
@@ -120,9 +102,9 @@ namespace DataLayer
     {
         public new string DefaultValue { get; set; } = string.Empty;
 
-        public  string HyperlinkUrl { get; set; }
+        public string HyperlinkUrl { get; set; }
 
-        public  string DisplayText { get; set; }
+        public string DisplayText { get; set; }
         public HyperlinkColumn()
         {
             TypeId = ColumnType.Hyperlink;
@@ -139,8 +121,6 @@ namespace DataLayer
         {
             TypeId = ColumnType.Image;
         }
-
-
     }
 
     public class LookupColumn : Column
@@ -205,9 +185,9 @@ namespace DataLayer
     {
         public new List<Choice> Choices { get; set; } =
         [
-            new Choice { Name = "Choice 1", Color = Color.Blue },
-            new Choice { Name = "Choice 2", Color = Color.Green },
-            new Choice { Name = "Choice 3", Color = Color.Yellow }
+            new Choice { Name = "Choice 1", Color = Color.Red.ToString() },
+            new Choice { Name = "Choice 2", Color = Color.Green.ToString() },
+            new Choice { Name = "Choice 3", Color = Color.Yellow.ToString() }
         ];
         public new string DefaultValue { get; set; } = string.Empty;
         public bool AddValuesManually { get; set; } = false;
@@ -233,6 +213,6 @@ namespace DataLayer
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
-        public Color Color { get; set; }
+        public string Color { get; set; } = string.Empty;
     }
 }

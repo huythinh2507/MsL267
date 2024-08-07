@@ -1,36 +1,24 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Drawing;
+using System.Globalization;
 
 namespace DataLayer
 {
     public class List
     {
-        private static User GetAdmin()
-        {
-            var admin = new User()
-            {
-                Name = "Admin",
-                IsOwner = true
-            };
-            return admin;
-        }
-
         private readonly List<User> accessList = [];
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<Column> Columns { get; set; } = new List<Column>();
-        public Color Color { get; set; } = new Color();
+        public String Color { get; set; } = string.Empty;
         public List<Row> Rows { get; set; } = new List<Row>();
         public string Icon { get; set; } = string.Empty;
         public bool IsFavorited { get; set; } = false;
         public int PageSize { get; set; } = 2;
-        public ViewType CurrentView { get; set; }
-        public List<View> Views { get; set; } = [];
         public int CurrentPage { get; set; } = 1;
-        public User Owner { get; private set; } = GetAdmin();
-
         public void AddCol<T>(T col) where T : Column
         {
             Columns.Add(col);
@@ -50,47 +38,72 @@ namespace DataLayer
             {
                 throw new ArgumentException("Number of values must match the number of columns.");
             }
-
             var newRow = new Row();
-
             int index = 0;
             foreach (var value in values)
             {
                 var column = Columns[index];
+                if (!IsValidTypeForColumn(column, value))
+                {
+                    throw new ArgumentException($"Invalid type for column '{column.Name}'. Expected {GetExpectedType(column)}, but got {value?.GetType().Name ?? "null"}.");
+                }
+                string cellValue = ConvertToCellValue(column, value);
+
                 var cell = new Cell
                 {
-                    ColumnType = column.TypeId
+                    ColumnType = column.TypeId,
+                    Value = cellValue,
                 };
-
-                // Handle HyperlinkColumn separately
-                if (column is HyperlinkColumn)
-                {
-                    if (value is Tuple<string, string> hyperlinkValue)
-                    {
-                        cell.Value = new HyperlinkColumn
-                        {
-                            HyperlinkUrl = hyperlinkValue.Item1,
-                            DisplayText = hyperlinkValue.Item2
-                        };
-                    }
-                    else
-                    {
-                        throw new ArgumentException("HyperlinkColumn values must be of type Tuple<string, string>.");
-                    }
-                }
-                else
-                {
-                    cell.Value = value;
-                }
-
                 newRow.Cells.Add(cell);
-                column.AddCellValue(value);
+                column.AddCellValue(cellValue);
                 index++;
             }
-
             Rows.Add(newRow);
         }
 
+        private string ConvertToCellValue(Column column, object value)
+        {
+            return column switch
+            {
+                HyperlinkColumn when value is ValueTuple<string, string> link =>
+                    JsonConvert.SerializeObject(new { Url = link.Item1, Text = link.Item2 }),
+                DateColumn when value is DateTime date =>
+                    date.ToString("o"),  
+                NumberColumn when value is double number =>
+                    number.ToString(CultureInfo.InvariantCulture),
+                _ => value?.ToString() ?? string.Empty
+            };
+        }
+
+        private bool IsValidTypeForColumn(Column column, object value)
+        {
+            return column switch
+            {
+                TextColumn or PersonColumn or ImageColumn or MultipleLinesOfTextColumn => value is string or null,
+                NumberColumn => value is double or int or float or decimal or null,
+                DateColumn => value is DateTime or null,
+                YesNoColumn => value is bool or null,
+                HyperlinkColumn => value is ValueTuple<string, string> or null,
+                ChoiceColumn => value is string or null, // Assuming choices are stored as strings
+                AverageRatingColumn => value is double or null,
+                _ => true // For any other column types, assume it's valid
+            };
+        }
+
+        private string GetExpectedType(Column column)
+        {
+            return column switch
+            {
+                TextColumn or PersonColumn or ImageColumn or MultipleLinesOfTextColumn => "string",
+                NumberColumn => "number",
+                DateColumn => "DateTime",
+                YesNoColumn => "bool",
+                HyperlinkColumn => "ValueTuple<string, string>",
+                ChoiceColumn => "string",
+                AverageRatingColumn => "double",
+                _ => "unknown"
+            };
+        }
 
         public void MoveColumnLeft(int index)
         {
@@ -173,10 +186,42 @@ namespace DataLayer
             Rows.Remove(row);
         }
 
-        public void EditRow(Guid rowId, List<object> newValues)
+        public void EditRow(Guid rowId, List<string> newValues)
         {
             var row = Rows.Find(r => r.Id == rowId) ?? throw new ArgumentException("Row not found.");
+
+            if (newValues.Count != Columns.Count)
+            {
+                throw new ArgumentException($"Number of new values ({newValues.Count}) does not match the number of columns ({Columns.Count}).");
+            }
+
+            for (int i = 0; i < newValues.Count; i++)
+            {
+                var column = Columns[i];
+                var newValue = newValues[i];
+
+                if (!IsValidValueForColumn(column, newValue))
+                {
+                    throw new ArgumentException($"Invalid value '{newValue}' for column '{column.Name}'. Expected {GetExpectedType(column)}.");
+                }
+            }
+
             row.UpdateCells(newValues);
+        }
+
+        private bool IsValidValueForColumn(Column column, string value)
+        {
+            return column switch
+            {
+                TextColumn or PersonColumn or ImageColumn or MultipleLinesOfTextColumn => true, 
+                NumberColumn => double.TryParse(value, out _),
+                DateColumn => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
+                YesNoColumn => bool.TryParse(value, out _),
+                HyperlinkColumn => Uri.TryCreate(value, UriKind.Absolute, out _), 
+                ChoiceColumn => column.Choices?.Exists(c => c.Name == value) ?? false, 
+                AverageRatingColumn => double.TryParse(value, out var rating) && rating >= 0 && rating <= 5, 
+                _ => true 
+            };
         }
 
         public void AddAccess(User user)

@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DataLayer
+﻿namespace DataLayer
 {
     public class Cell
     {
-        public object Value { get; set; } = new object();
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Value { get; set; } = string.Empty;
         public ColumnType ColumnType { get; set; }
+        public Guid RowID { get; set; }
     }
 }

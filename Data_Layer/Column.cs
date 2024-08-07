@@ -9,13 +9,13 @@ namespace DataLayer
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
         public ColumnType TypeId { get; set; }
-        public List<object> Value { get; set; } = new List<object>();
+        public List<string> Value { get; set; } = [string.Empty];
         public string Description { get; set; } = string.Empty;
         public bool IsHidden { get; set; } = false;
         public int Width { get; set; } = MsLConstant.DefaultColWidth;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public List<Choice>? Choices { get; set; }
         public Guid ListID { get; set; } = Guid.Empty;
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public object? DefaultValue { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string? DefaultValue { get; set; }
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool AtoZFilter { get; set; } = false;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public bool ZtoAFilter { get; set; } = false;
 
@@ -39,7 +39,7 @@ namespace DataLayer
             Name = newName;
         }
 
-        public void AddCellValue(object value)
+        public void AddCellValue(string value)
         {
             Value.Add(value);
         }
@@ -49,7 +49,6 @@ namespace DataLayer
 
             var sortedValues = Value.OfType<string>()
                                          .OrderBy(val => val, StringComparer.Ordinal)
-                                         .Cast<object>()
                                          .ToList();
             AtoZFilter = true;
             ZtoAFilter = false;
@@ -60,17 +59,16 @@ namespace DataLayer
         {
             var sortedValues = Value.OfType<string>()
                                          .OrderByDescending(val => val, StringComparer.Ordinal)
-                                         .Cast<object>()
                                          .ToList();
             AtoZFilter = false;
             ZtoAFilter = true;
             UpdateCellValues(sortedValues);
         }
 
-        private void UpdateCellValues(List<object> sortedValues)
+        private void UpdateCellValues(List<string> sortedValues)
         {
             int sortedIndex = 0;
-            Value = Value.Select(val => val is string ? sortedValues[sortedIndex++] : val).ToList();
+            Value = Value.Select(val => (val != null) ? sortedValues[sortedIndex++] : val).ToList();
         }
 
         public List<object> FilterBy(Func<object, bool> predicate)
@@ -81,7 +79,7 @@ namespace DataLayer
 
     public class PersonColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool ShowProfilePic { get; set; } = false;
 
         public PersonColumn()
@@ -92,7 +90,7 @@ namespace DataLayer
 
     public class YesNoColumn : Column
     {
-        public bool DefaultValue { get; set; } = false;
+        public new bool DefaultValue { get; set; } = false;
 
         public YesNoColumn()
         {
@@ -102,11 +100,11 @@ namespace DataLayer
 
     public class HyperlinkColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
-        public  string HyperlinkUrl { get; set; }
+        public string HyperlinkUrl { get; set; }
 
-        public  string DisplayText { get; set; }
+        public string DisplayText { get; set; }
         public HyperlinkColumn()
         {
             TypeId = ColumnType.Hyperlink;
@@ -117,14 +115,12 @@ namespace DataLayer
 
     public class ImageColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
         public ImageColumn()
         {
             TypeId = ColumnType.Image;
         }
-
-
     }
 
     public class LookupColumn : Column
@@ -154,7 +150,7 @@ namespace DataLayer
 
     public class MultipleLinesOfTextColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
 
         public MultipleLinesOfTextColumn()
         {
@@ -164,10 +160,10 @@ namespace DataLayer
 
     public class TextColumn : Column
     {
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool CalculatedValue { get; set; } = false;
-        public bool AtoZFilter { get; set; } = false;
-        public bool ZtoAFilter { get; set; } = false;
+        public new bool AtoZFilter { get; set; } = false;
+        public new bool ZtoAFilter { get; set; } = false;
 
         public TextColumn()
         {
@@ -177,7 +173,7 @@ namespace DataLayer
 
     public class NumberColumn : Column
     {
-        public double DefaultValue { get; set; } = 0.0;
+        public new double DefaultValue { get; set; } = 0.0;
 
         public NumberColumn()
         {
@@ -189,11 +185,11 @@ namespace DataLayer
     {
         public new List<Choice> Choices { get; set; } =
         [
-            new Choice { Name = "Choice 1", Color = Color.Blue },
-            new Choice { Name = "Choice 2", Color = Color.Green },
-            new Choice { Name = "Choice 3", Color = Color.Yellow }
+            new Choice { Name = "Choice 1", Color = Color.Red.ToString() },
+            new Choice { Name = "Choice 2", Color = Color.Green.ToString() },
+            new Choice { Name = "Choice 3", Color = Color.Yellow.ToString() }
         ];
-        public string DefaultValue { get; set; } = string.Empty;
+        public new string DefaultValue { get; set; } = string.Empty;
         public bool AddValuesManually { get; set; } = false;
 
         public ChoiceColumn()
@@ -204,7 +200,7 @@ namespace DataLayer
 
     public class DateColumn : Column
     {
-        public DateTime DefaultValue { get; set; } = DateTime.Now;
+        public new DateTime DefaultValue { get; set; } = DateTime.Now;
 
         public DateColumn()
         {
@@ -217,6 +213,6 @@ namespace DataLayer
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;
-        public Color Color { get; set; }
+        public string Color { get; set; } = string.Empty;
     }
 }

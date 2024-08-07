@@ -5,8 +5,9 @@
         public Guid Id { get; set; } = Guid.NewGuid();
 
         public List<Cell> Cells { get; set; } = new List<Cell>();
+        public Guid ListId { get; internal set; }
 
-        public void UpdateCells(List<object> newValues)
+        public void UpdateCells(List<string> newValues)
         {
             if (newValues.Count != Cells.Count)
             {
@@ -15,7 +16,7 @@
 
             for (int i = 0; i < Cells.Count; i++)
             {
-                Cells[i].Value = (List<object>)newValues[i];
+                Cells[i].Value = newValues[i];
             }
         }
     }

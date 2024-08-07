@@ -17,12 +17,13 @@ namespace MsLServiceLayer
         }
 
         private readonly List<List> _lists;
+        private static readonly string[] value = ["Value"];
+        private static readonly string[] valueArray = ["Value"];
 
         public ListService()
         {
             var path = MsLConstant.FilePath;
             ArgumentNullException.ThrowIfNull(path);
-
 
             _lists = [];
         }
@@ -34,7 +35,7 @@ namespace MsLServiceLayer
                 Name = listName,
                 Description = description,
                 Columns = [],
-                Color = color,
+                Color = color.ToString(),
                 Icon = icon,
                 Rows = []
             };
@@ -59,7 +60,7 @@ namespace MsLServiceLayer
                 Name = newName,
                 Description = description,
                 Columns = existingList.Columns,
-                Color = color ?? Color.Transparent,
+                Color = color.ToString() ?? Color.Transparent.ToString(),
                 Icon = icon,
                 Rows = existingList.Rows
             };
@@ -137,11 +138,8 @@ namespace MsLServiceLayer
 
         public List<List> LoadLists()
         {
-            var existingData = File.Exists(MsLConstant.FilePath) ? File.ReadAllText(MsLConstant.FilePath) : "[]";
-            var savedLists = JsonConvert.DeserializeObject<List<List>>(existingData) ?? new List<List>();
-
-
-            return savedLists;
+            var lists = new Database().GetLists().Result.ToList();
+            return lists;
         }
 
         public void SaveLists(List<List> lists)
@@ -184,9 +182,9 @@ namespace MsLServiceLayer
             {
                 choiceColumn.Choices = new List<Choice>
                 {
-                    new() { Name = "Choice 1", Color = Color.Blue },
-                    new() { Name = "Choice 2", Color = Color.Green },
-                    new() { Name = "Choice 3", Color = Color.Yellow }
+                    new() { Name = "Choice 1", Color = Color.Blue.ToString() },
+                    new() { Name = "Choice 2", Color = Color.Green.ToString() },
+                    new() { Name = "Choice 3", Color = Color.Yellow.ToString() }
                 };
             }
 
@@ -198,12 +196,7 @@ namespace MsLServiceLayer
             return column;
         }
 
-
-        public void DeleteAll(List<List> savedLists)
-        {
-            savedLists.Clear();
-            SaveLists(savedLists);
-        }
+        
 
         public void SortColumnAsc(Guid listId, Guid colId)
         {
@@ -221,11 +214,15 @@ namespace MsLServiceLayer
             SaveLists(lists);
         }
 
-        public List<Row> SearchList(Guid listId, string query)
+        public async Task<List<Row>> SearchList(Guid listId, string query)
         {
-            var list = _lists.Find(l => l.Id == listId) ?? throw new ArgumentException("List not found.");
-            return list.Search(query);
+            using var db = new Database();
+            var lists = await db.GetLists();
+
+            var list = lists.FirstOrDefault(l => l.Id == listId);
+            return list == null ? throw new ArgumentException("List not found.", nameof(listId)) : list.Search(query);
         }
+
 
         public List<List> AddColumn(Guid listId, ColumnRequest request)
         {
@@ -242,7 +239,7 @@ namespace MsLServiceLayer
             return lists;
         }
 
-        public void AddRow(Guid listId, params object[] values)
+        public void AddRow(Guid listId, params string[] values)
         {
             var lists = LoadLists();
             var list = GetList(listId);
@@ -365,7 +362,7 @@ namespace MsLServiceLayer
             return list;
         }
 
-        public List UpdateCellValue(Guid listId, Guid rowId, Guid columnId, object newValue)
+        public List UpdateCellValue(Guid listId, Guid rowId, Guid columnId, string newValue)
         {
             var lists = LoadLists();
             var list = GetList(listId) ?? throw new ArgumentException($"List with ID {listId} not found.");
@@ -418,7 +415,7 @@ namespace MsLServiceLayer
                 {
                     return new Row
                     {
-                        Cells = r is IDictionary<string, object> recordAsDict ? recordAsDict.Values.Select(v => new Cell { Value = v.ToString() ?? new object() }).ToList() : new List<Cell>()
+                        Cells = r is IDictionary<string, object> recordAsDict ? recordAsDict.Values.Select(v => new Cell { Value = v.ToString() ?? string.Empty }).ToList() : new List<Cell>()
                     };
                 }).ToList()
             };
@@ -431,55 +428,161 @@ namespace MsLServiceLayer
             return list;
         }
 
-
-        //TODO: refactor
         public string ModifyLists(JArray jsonArray)
         {
+            var propertiesToRemove = new Dictionary<ColumnType, string[]>
+            {
+                { ColumnType.Choice, valueArray },
+                { ColumnType.YesNo, value }
+            };
+
+            var defaultPropertiesToRemove = new[] { "Choices", "AtoZFilter", "ZtoAFilter" };
+
             foreach (var item in jsonArray)
             {
-                if (item["Columns"] is JArray columnsArray) // Use "Columns" with correct casing
-                {
-                    foreach (var column in columnsArray)
-                    {
-                        if (column is JObject columnObject)
-                        {
-                            var typeId = columnObject["TypeId"]?.Value<int>() ?? 0; // Use "TypeId" with correct casing
+                var columnsArray = item["Columns"] as JArray;
+                columnsArray?.Select(column => column as JObject)
+                             .Where(columnObject => columnObject != null)
+                             .ToList()
+                             .ForEach(columnObject =>
+                             {
+                                 ArgumentNullException.ThrowIfNull(columnObject);
 
-                            // Convert the typeId to ColumnType enum
-                            if (Enum.IsDefined(typeof(ColumnType), typeId))
-                            {
-                                var columnType = (ColumnType)typeId;
+                                 var typeId = columnObject["TypeId"]?.Value<int>() ?? 0;
+                                 var columnType = Enum.IsDefined(typeof(ColumnType), typeId)
+                                 ? (ColumnType)typeId
+                                 : ColumnType.Text; 
 
-                                if (columnType != ColumnType.Choice)
-                                {
-                                    columnObject.Remove("Choices"); 
-                                }
+                                 var toRemove = columnType switch
+                                 {
+                                     ColumnType.Text => ["Choices"],
+                                     ColumnType.Choice => ["AtoZFilter", "ZtoAFilter"],
+                                     _ => defaultPropertiesToRemove
+                                 };
 
-                                if (columnType == ColumnType.Choice)
-                                {
-                                    columnObject.Remove("Value"); 
-                                }
+                                 if (propertiesToRemove.TryGetValue(columnType, out var additionalProperties))
+                                 {
+                                     toRemove = [.. toRemove, .. additionalProperties];
+                                 }
 
-                                if (columnType == ColumnType.YesNo)
-                                {
-                                    columnObject.Remove("Value"); 
-                                }
-
-                                if (columnType != ColumnType.Text)
-                                {
-                                    columnObject.Remove("AtoZFilter");
-                                    columnObject.Remove("ZtoAFilter");
-                                }
-                            }
-                        }
-                    }
-                }
+                                 toRemove.ToList().ForEach(prop => columnObject.Remove(prop));
+                             });
             }
 
-            var result = jsonArray.ToString(Formatting.Indented);
-            return result;
+            return jsonArray.ToString(Formatting.Indented);
         }
 
+        public void DeleteRow(Guid listId, Guid rowId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var row = list.Rows.Find(r => r.Id == rowId);
+
+            ArgumentNullException.ThrowIfNull(row);
+
+            list.Delete(row);
+
+            SaveLists(lists);
+        }
+
+        public void HideColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Hide();
+
+            SaveLists(lists);
+        }
+
+        public void WidenColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Widen();
+
+            SaveLists(lists);
+        }
+
+        public void NarrowColumn(Guid listId, Guid colId)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Narrow();
+
+            SaveLists(lists);
+        }
+
+        public void RenameColumn(Guid listId, Guid colId, string newName)
+        {
+            var lists = LoadLists();
+            var list = lists.Find(l => l.Id == listId);
+
+            ArgumentNullException.ThrowIfNull(list);
+
+            var col = list.Columns.Find(c => c.Id == colId);
+
+            ArgumentNullException.ThrowIfNull(col);
+
+            col.Rename(newName);
+
+            SaveLists(lists);
+        }
+
+        public void DeleteAll(List<List> savedLists)
+        {
+            savedLists.Clear();
+            SaveLists(savedLists);
+        }
+
+        public void DeleteAll()
+        {
+            using var db = new Database();
+            var lists = db.GetLists();
+
+            foreach (var list in lists.Result)
+            {
+                // Delete rows and cells associated with the list
+                foreach (var row in list.Rows)
+                {
+                    db.Rows.Remove(row);
+                }
+
+                // Delete columns associated with the list
+                foreach (var column in list.Columns)
+                {
+                    db.Columns.Remove(column);
+                }
+
+                // Delete the list itself
+                db.Lists.Remove(list);
+            }
+
+            db.SaveChanges();
+        }
 
     }
 }
